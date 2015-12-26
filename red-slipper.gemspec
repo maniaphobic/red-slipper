@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.authors     = ['Red Slipper']
-  s.date        = '2015-12-23'
+  s.date        = '2015-12-25'
   s.description = 'A Ruby interface to Cobbler'
   s.email       = 'red.slipper@maildrop.cc'
   s.files       = ['lib/cobbler.rb']
@@ -8,5 +8,5 @@ Gem::Specification.new do |s|
   s.license     = 'BSD'
   s.name        = 'red-slipper'
   s.summary     = 'A Ruby interface to Cobbler'
-  s.version     = '0.1.0'
+  s.version     = '0.1.1'
 end

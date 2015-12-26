@@ -17,11 +17,11 @@ module Cobbler
     attr_reader :client
 
     def initialize(args = {})
-      @client        = nil
-      @max_retries   = args.fetch('max_retries', default_args['max_retries'])
-      url_candidate  = args.fetch('url', default_args['url'])
+      @client       = nil
+      @max_retries  = args.fetch('max_retries', default_args['max_retries'])
+      url_candidate = args.fetch('url', default_args['url'])
       begin
-        @url         = URI(url_candidate)
+        @url        = URI(url_candidate)
       rescue ArgumentError
         raise "[ERROR] '#{url_candidate}' is not a valid URL."
       end
@@ -55,7 +55,7 @@ module Cobbler
       id_list = run_query('find_system', { 'hostname' => fqdn })
       case id_list
       when nil, '', '~', []
-        Cobbler::System.new
+        nil
       else
         get_system_by_id(id_list.first)
       end
@@ -63,7 +63,7 @@ module Cobbler
 
     def get_system_by_id(id)
       result = run_query('get_system', id)
-      Cobbler::System.new(result.class == Hash ? result : {})
+      result.class == Hash ? Cobbler::System.new(result) : nil
     end
 
     def run_query(action, query)
@@ -100,13 +100,14 @@ module Cobbler
       @changes.count > 0
     end
 
-    def comment(new_value={}, mode='merge', format='hash')
-      hash_field('comment', normalize_hash(new_value), mode)
+    def comment(format='hash', new_value={}, mode='merge')
+      field_name = 'comment'
+      hash_field(field_name, normalize_hash(new_value), mode)
       case format
       when 'json', 'string'
-        JSON.generate(@record['comment'])
+        JSON.generate(@record[field_name])
       else
-        @record['comment']
+        @record[field_name]
       end
     end
 
@@ -117,7 +118,7 @@ module Cobbler
       ]
       @changes.each do |field_name|
         edit_cmd << option_name(field_name)
-        edit_cmd << "'#{self.send(field_name, {}, 'merge', 'string')}'"
+        edit_cmd << "'#{self.send(field_name, 'string')}'"
       end
       puts(edit_cmd.join(' '))
     end
@@ -147,15 +148,38 @@ module Cobbler
       end
     end
 
-    def ks_meta(new_value={}, mode='merge', format='hash')
-      hash_field('ks_meta', normalize_hash(new_value), mode)
+    def ks_meta(format='hash', new_value={}, mode='merge')
+      field_name = 'ks_meta'
+      hash_field(field_name, normalize_hash(new_value), mode)
+
       case format
       when 'hash'
-        @record['ks_meta']
+        @record[field_name]
       when 'json'
-        JSON.generate(@record['ks_meta'])
+        JSON.generate(@record[field_name])
       when 'string'
-        @record['ks_meta'].map { |k,v| k + '=' + v }.join(' ')
+        @record[field_name].map { |k,v| k + '=' + v }.join(' ')
+      end
+    end
+
+    def mgmt_classes(format='array', new_value=[], mode='replace')
+      field_name = 'mgmt_classes'
+      before     = @record[field_name]
+
+      case mode
+      when 'merge'
+        @record[field_name] |= new_value
+      when 'replace'
+        @record[field_name] = new_value unless new_value == []
+      end
+
+      @changes << field_name if @record[field_name] != before
+
+      case format
+      when 'array'
+        @record[field_name]
+      when 'string'
+        @record[field_name].join(' ')
       end
     end
 
@@ -174,6 +198,8 @@ module Cobbler
       '--' + case field_name
              when 'ks_meta'
                'ksmeta'
+             when 'mgmt_classes'
+               'mgmt-classes'
              else
                field_name
              end
